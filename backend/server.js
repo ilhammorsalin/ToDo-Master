@@ -14,39 +14,30 @@ require('dotenv').config();
 // process.env = object that holds environment variables (keyword: environment variables)
 // NODE_ENV = a common flag to indicate environment: 'development', 'test', or 'production'
 // || 'development' = use 'development' if nothing is set (keyword: logical OR for default)
-const NODE_ENV = process.env.NODE_ENV || 'development';
+const CONFIG_NODE_ENV = process.env.NODE_ENV;
 // PORT = which TCP port the server listens on (number between ~1024 and 65535 in dev)
 // Number(...) = convert string to a number (keyword: type conversion)
 // || 5000 = default to 5000 if PORT isn't set in .env or the shell
-const PORT = Number(process.env.PORT || 5000);
-
+const CONFIG_PORT = Number(process.env.PORT);
+const CONFIG_ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS.split(',')
+  .filter(Boolean)
+  .map((s) => s.trim());
 // Allowed origins helper
 // Purpose: decide which websites (origins) are allowed by CORS to call our API
 // Origin = scheme + host + port (e.g., http://localhost:5173)
 // .env usage: ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
-function configureAllowedOrigins() {
-  // Read the comma-separated ALLOWED_ORIGINS from env (empty string if missing)
-  // .split(',') = turn "a,b" into ["a","b"]
-  // .map((s) => s.trim()) = remove whitespace around each item (keyword: arrow function)
-  // .filter(Boolean) = keep only truthy values (removes empty strings)
-  const fromEnv = (process.env.ALLOWED_ORIGINS || '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
 
-  // Defaults for local development if env var is not provided
-  const defaults = [
-    'http://localhost:5173', // Vite dev server default
-    'http://127.0.0.1:5173', // Vite via loopback IP
-    'http://localhost:3000', // Common React dev server
-    'http://127.0.0.1:3000', // React via loopback IP
-  ];
+const configureAllowedOrigins = () => {
+  if (CONFIG_NODE_ENV == 'development') {
+    CONFIG_ALLOWED_ORIGINS.push('http://localhost:5173');
+  }
 
-  // new Set(array) = removes duplicates (keyword: Set = collection of unique values)
-  // Array.from(set) = turn Set back into an array
-  // fromEnv.length ? fromEnv : defaults = choose env list if present, otherwise defaults (ternary operator)
-  return Array.from(new Set([...(fromEnv.length ? fromEnv : defaults)]));
-}
+  // else if (CONFIG_NODE_ENV == 'production') {
+  //   CONFIG_ALLOWED_ORIGINS.push('http://localhost:5173');
+  // }
+
+  return [...new Set([...CONFIG_ALLOWED_ORIGINS])].filter(Boolean).map((o) => o.replace(/\/$/, ''));
+};
 
 // Call the helper to build the final allowed origins list
 const allowedOrigins = configureAllowedOrigins();
@@ -96,8 +87,8 @@ function handleHealthCheck(req, res) {
     timestamp, // shorthand for timestamp: timestamp (keyword: property shorthand)
     api: {
       running: true, // our API is up
-      port: PORT, // current port number
-      env: NODE_ENV, // environment string
+      port: CONFIG_PORT, // current port number
+      env: CONFIG_NODE_ENV, // environment string
       allowedOrigins, // which origins are allowed (array)
     },
     gemini: {
@@ -134,11 +125,9 @@ app.use((req, res) => {
 // --- Start the server ---
 // app.listen(PORT, callback) = begin listening for incoming HTTP requests on PORT
 // The callback runs once the server is up; we print helpful info to the console
-app.listen(PORT, () => {
+app.listen(CONFIG_PORT, () => {
   // Template string (backticks) with ${...} placeholders (keyword: template literal)
-  console.log(`API listening on http://localhost:${PORT} (env=${NODE_ENV})`);
-  // allowedOrigins.join(', ') = turn array into a comma-separated string (keyword: join)
-  console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
+  console.log(`API listening on http://localhost:${CONFIG_PORT} (env=${CONFIG_NODE_ENV})`);
 });
 
 // Export the app instance for testing or external usage (keyword: module.exports = CommonJS export)
